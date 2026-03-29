@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ThunderCraft AI 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="container">
+    <h1>⚡ ThunderCraft AI 设置</h1>
+
+    <!-- API Settings -->
+    <section>
+      <h2>API 设置</h2>
+
+      <div class="field">
+        <label for="api_base_url">API 地址 (Base URL)</label>
+        <input type="url" id="api_base_url" placeholder="https://api.example.com">
+        <span class="hint">不含末尾斜杠，例如: https://cc1.zhihuiapi.top</span>
+      </div>
+
+      <div class="field">
+        <label for="api_key">API Key</label>
+        <div class="input-group">
+          <input type="password" id="api_key" placeholder="sk-...">
+          <button id="btn-toggle-key" class="btn-small" type="button">显示</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="api_model">模型名称 (Model)</label>
+        <input type="text" id="api_model" placeholder="claude-opus-4-6">
+        <span class="hint">填写 API 平台支持的模型 ID</span>
+      </div>
+
+      <div class="field">
+        <button id="btn-test" class="btn-primary" type="button">测试连接</button>
+        <span id="test-result" class="test-result"></span>
+      </div>
+    </section>
+
+    <!-- Generation Parameters -->
+    <section>
+      <h2>生成参数</h2>
+
+      <div class="field">
+        <label for="temperature">Temperature (0 - 1)</label>
+        <input type="number" id="temperature" min="0" max="1" step="0.1" placeholder="0.7">
+        <span class="hint">越低越精确，越高越有创意</span>
+      </div>
+
+      <div class="field">
+        <label for="max_tokens">最大 Token 数</label>
+        <input type="number" id="max_tokens" min="100" max="128000" step="100" placeholder="4096">
+      </div>
+
+      <div class="field">
+        <label for="system_prompt">系统提示词 (System Prompt)</label>
+        <textarea id="system_prompt" rows="3" placeholder="你是一位专业的邮件写作助手..."></textarea>
+        <span class="hint">定义 AI 的角色和行为，留空则使用默认提示词</span>
+      </div>
+    </section>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button id="btn-save" class="btn-primary" type="button">保存设置</button>
+      <span id="save-status" class="save-status"></span>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

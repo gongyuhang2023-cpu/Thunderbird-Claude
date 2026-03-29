@@ -1,0 +1,18 @@
+{
+  "extensionName": {
+    "message": "ThunderCraft AI",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "AI-powered email writing assistant - polish, translate, compose, smart reply",
+    "description": "Extension description"
+  },
+  "composeActionTitle": {
+    "message": "ThunderCraft AI - Email Assistant",
+    "description": "Compose action tooltip"
+  },
+  "displayActionTitle": {
+    "message": "ThunderCraft AI - Email Assistant",
+    "description": "Message display action tooltip"
+  }
+}

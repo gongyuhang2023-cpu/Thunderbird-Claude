@@ -1,0 +1,18 @@
+{
+  "extensionName": {
+    "message": "ThunderCraft AI",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "AI 驱动的邮件写作助手 - 润色、翻译、撰写、智能回复",
+    "description": "Extension description"
+  },
+  "composeActionTitle": {
+    "message": "ThunderCraft AI - 邮件助手",
+    "description": "Compose action tooltip"
+  },
+  "displayActionTitle": {
+    "message": "ThunderCraft AI - 邮件助手",
+    "description": "Message display action tooltip"
+  }
+}

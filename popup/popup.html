@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- State 1: Action List -->
+  <div id="view-actions" class="view">
+    <div class="header">
+      <span class="logo">⚡ ThunderCraft AI</span>
+      <button id="btn-settings" class="icon-btn" title="设置">⚙️</button>
+    </div>
+    <div id="no-config" class="notice" style="display:none;">
+      <p>请先配置 API 设置</p>
+      <button id="btn-go-settings" class="btn-primary">打开设置</button>
+    </div>
+    <div id="action-list" class="action-list"></div>
+  </div>
+
+  <!-- State 2: Custom Input -->
+  <div id="view-input" class="view" style="display:none;">
+    <div class="header">
+      <button id="btn-back-input" class="icon-btn">←</button>
+      <span id="input-title" class="header-title"></span>
+    </div>
+    <div class="input-area">
+      <textarea id="custom-input" placeholder="请输入您的要求..." rows="5"></textarea>
+      <button id="btn-send" class="btn-primary btn-full">发送</button>
+    </div>
+  </div>
+
+  <!-- State 3: Streaming Output -->
+  <div id="view-result" class="view" style="display:none;">
+    <div class="header">
+      <button id="btn-back-result" class="icon-btn">←</button>
+      <span id="result-title" class="header-title">AI 生成中...</span>
+      <button id="btn-stop" class="icon-btn" title="停止">⏹</button>
+    </div>
+    <div id="result-content" class="result-content"></div>
+    <div id="result-error" class="error-msg" style="display:none;"></div>
+    <div id="result-actions" class="result-actions" style="display:none;">
+      <button id="btn-insert" class="btn-primary" title="插入到邮件正文">插入邮件</button>
+      <button id="btn-replace" class="btn-secondary" title="替换选中的文本">替换选中</button>
+      <button id="btn-reply" class="btn-primary" style="display:none;" title="创建回复窗口">创建回复</button>
+      <button id="btn-copy" class="btn-secondary" title="复制到剪贴板">复制</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
