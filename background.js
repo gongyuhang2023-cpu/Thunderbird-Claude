@@ -5,54 +5,32 @@
 
   // --- State ---
   let currentAbortController = null;
-  let cachedDisplayContext = null; // cached before popup opens
+  let cachedDisplayContext = null;
 
   // --- Register compose content script ---
   browser.composeScripts.register({
     js: [{ file: "/compose-script.js" }]
   });
 
-  // --- Message Display Action: capture selection BEFORE popup opens ---
-  messenger.messageDisplayAction.onClicked.addListener(async (tab) => {
-    // Capture selected text NOW (focus is still on message, not stolen by popup)
-    let selectedText = "";
+  // --- Proactively cache message data whenever a message is displayed ---
+  messenger.messageDisplay.onMessageDisplayed.addListener(async (tab, message) => {
     try {
-      const results = await browser.tabs.executeScript(tab.id, {
-        code: "window.getSelection().toString();",
-        allFrames: true
-      });
-      if (results) {
-        selectedText = results.find(r => r && r.trim()) || "";
-      }
-    } catch { /* ignore */ }
+      const fullMsg = await browser.messages.getFull(message.id);
+      const mailBody = ThunderCraftHTML.extractTextFromMimeParts(fullMsg);
 
-    // Build full display context
-    try {
-      const msgList = await messenger.messageDisplay.getDisplayedMessages(tab.id);
-      if (msgList && msgList.length > 0) {
-        const msg = msgList[0];
-        const fullMsg = await browser.messages.getFull(msg.id);
-        const mailBody = ThunderCraftHTML.extractTextFromMimeParts(fullMsg);
-
-        cachedDisplayContext = {
-          tabType: "display",
-          tabId: tab.id,
-          messageId: msg.id,
-          mailBody: mailBody,
-          mailSubject: msg.subject || "",
-          author: msg.author || "",
-          selectedText: selectedText,
-          hasSelection: !!selectedText,
-          timestamp: Date.now()
-        };
-      }
-    } catch { /* ignore */ }
-
-    // Now open the popup
-    messenger.messageDisplayAction.setPopup({ popup: "popup/popup.html" });
-    messenger.messageDisplayAction.openPopup();
-    // Reset so onClicked fires again next time
-    messenger.messageDisplayAction.setPopup({ popup: "" });
+      cachedDisplayContext = {
+        tabType: "display",
+        tabId: tab.id,
+        messageId: message.id,
+        mailBody: mailBody,
+        mailSubject: message.subject || "",
+        author: message.author || "",
+        selectedText: "",
+        hasSelection: false
+      };
+    } catch (err) {
+      console.error("ThunderCraft: failed to cache message:", err);
+    }
   });
 
   // --- Context Menus ---
@@ -93,7 +71,6 @@
     if (!promptDef) return;
 
     try {
-      // Get selected text from compose editor
       const selectedText = await browser.tabs.sendMessage(tab.id, { command: "getSelectedText" });
       if (!selectedText) return;
 
@@ -101,7 +78,6 @@
         selectedText: selectedText
       });
 
-      // Stream and collect full result
       let fullText = "";
       await new Promise((resolve, reject) => {
         ThunderCraftAPI.fetchStream(
@@ -160,13 +136,6 @@
 
   // --- Get Context ---
   async function handleGetContext(tabId) {
-    // Use cached display context if fresh (within 3 seconds)
-    if (cachedDisplayContext && (Date.now() - cachedDisplayContext.timestamp) < 3000) {
-      const ctx = cachedDisplayContext;
-      cachedDisplayContext = null;
-      return ctx;
-    }
-
     try {
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
       const tab = tabs[0];
@@ -178,7 +147,6 @@
       try {
         const details = await browser.compose.getComposeDetails(realTabId);
         if (details) {
-          // It's a compose tab
           let selectedText = "";
           try {
             selectedText = await browser.tabs.sendMessage(realTabId, { command: "getSelectedText" });
@@ -195,27 +163,20 @@
         // Not a compose tab
       }
 
-      // Check if it's a message display tab
+      // Use proactively cached display context
+      if (cachedDisplayContext) {
+        // Update tabId to current (tab might have changed)
+        cachedDisplayContext.tabId = realTabId;
+        return { ...cachedDisplayContext };
+      }
+
+      // Fallback: try to read message display directly
       try {
         const msgList = await messenger.messageDisplay.getDisplayedMessages(realTabId);
         if (msgList && msgList.length > 0) {
           const msg = msgList[0];
           const fullMsg = await browser.messages.getFull(msg.id);
           const mailBody = ThunderCraftHTML.extractTextFromMimeParts(fullMsg);
-
-          // Grab selected text via executeScript in all frames
-          // (message body is rendered inside an iframe)
-          let selectedText = "";
-          try {
-            const results = await browser.tabs.executeScript(realTabId, {
-              code: "window.getSelection().toString();",
-              allFrames: true
-            });
-            // results is an array with one entry per frame; pick the first non-empty one
-            if (results) {
-              selectedText = results.find(r => r && r.trim()) || "";
-            }
-          } catch { /* executeScript may not be supported on this tab */ }
 
           return {
             tabType: "display",
@@ -224,8 +185,8 @@
             mailBody: mailBody,
             mailSubject: msg.subject || "",
             author: msg.author || "",
-            selectedText: selectedText,
-            hasSelection: !!selectedText
+            selectedText: "",
+            hasSelection: false
           };
         }
       } catch {
@@ -242,33 +203,22 @@
 
   // --- Execute AI Action ---
   async function handleExecuteAction(message) {
-    const { actionId, tabId, customText, popupTabId } = message;
+    const { actionId, tabId, customText } = message;
     const promptDef = ThunderCraftPrompts.getById(actionId);
     if (!promptDef) return { error: "未知动作" };
 
     // Gather context data
     let data = { customText: customText || "" };
 
-    // Use selectedText passed from popup if available
     if (message.selectedText) {
       data.selectedText = message.selectedText;
     }
 
     try {
       if ((promptDef.needSelection || promptDef.id === "custom") && !data.selectedText) {
-        // Try compose content script first
         try {
           data.selectedText = await browser.tabs.sendMessage(tabId, { command: "getSelectedText" });
-        } catch {
-          // Fallback: executeScript in all frames for message display tabs
-          try {
-            const results = await browser.tabs.executeScript(tabId, {
-              code: "window.getSelection().toString();",
-              allFrames: true
-            });
-            data.selectedText = (results && results.find(r => r && r.trim())) || "";
-          } catch { data.selectedText = ""; }
-        }
+        } catch { data.selectedText = ""; }
       }
 
       if (promptDef.id === "proofread") {
@@ -281,12 +231,15 @@
         }
       }
 
-      if (promptDef.type === "display" || promptDef.type === "both") {
-        if (message.mailBody) {
-          data.mailBody = message.mailBody;
-          data.mailSubject = message.mailSubject || "";
-          data.author = message.author || "";
-        }
+      // Use mailBody from popup message or from cached context
+      if (message.mailBody) {
+        data.mailBody = message.mailBody;
+        data.mailSubject = message.mailSubject || "";
+        data.author = message.author || "";
+      } else if (cachedDisplayContext && cachedDisplayContext.mailBody) {
+        data.mailBody = cachedDisplayContext.mailBody;
+        data.mailSubject = cachedDisplayContext.mailSubject || "";
+        data.author = cachedDisplayContext.author || "";
       }
 
       // Resolve prompt
@@ -302,11 +255,10 @@
       ThunderCraftAPI.fetchStream(
         [{ role: "user", content: resolvedPrompt }],
         (token) => {
-          // Forward token to popup
           browser.runtime.sendMessage({
             command: "streamToken",
             token: token
-          }).catch(() => { /* popup might be closed */ });
+          }).catch(() => {});
         },
         (fullText) => {
           currentAbortController = null;
@@ -340,7 +292,6 @@
       const details = await browser.compose.getComposeDetails(tabId);
       const currentBody = details.body || "";
 
-      // Find the quoted content marker and insert before it
       const quoteMarker = currentBody.indexOf('<div class="moz-cite-prefix"');
       const blockquoteMarker = currentBody.indexOf('<blockquote');
       const insertPos = Math.min(
@@ -352,7 +303,6 @@
       if (insertPos < Infinity) {
         newBody = html + "<br><br>" + currentBody.substring(insertPos);
       } else {
-        // Replace body content inside <body> tags
         const bodyMatch = currentBody.match(/(<body[^>]*>)([\s\S]*?)(<\/body>)/i);
         if (bodyMatch) {
           newBody = bodyMatch[1] + html + bodyMatch[3];
@@ -390,13 +340,11 @@
       const html = ThunderCraftHTML.textToHtml(text);
       const tab = await browser.compose.beginReply(messageId, "replyToSender");
 
-      // Wait for compose tab to be ready
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const details = await browser.compose.getComposeDetails(tab.id);
       const currentBody = details.body || "";
 
-      // Insert AI text before the quoted content
       const quoteMarker = currentBody.indexOf('<div class="moz-cite-prefix"');
       const blockquoteMarker = currentBody.indexOf('<blockquote');
       const insertPos = Math.min(
