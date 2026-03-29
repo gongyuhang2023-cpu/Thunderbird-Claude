@@ -131,7 +131,10 @@
       customText: customText
     };
 
-    // Include display context data
+    // Include context data
+    if (context?.selectedText) {
+      message.selectedText = context.selectedText;
+    }
     if (context?.tabType === "display") {
       message.mailBody = context.mailBody;
       message.mailSubject = context.mailSubject;

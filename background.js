@@ -152,13 +152,24 @@
           const fullMsg = await browser.messages.getFull(msg.id);
           const mailBody = ThunderCraftHTML.extractTextFromMimeParts(fullMsg);
 
+          // Grab selected text via executeScript (selection persists even when grayed out)
+          let selectedText = "";
+          try {
+            const results = await browser.tabs.executeScript(realTabId, {
+              code: "window.getSelection().toString();"
+            });
+            selectedText = (results && results[0]) || "";
+          } catch { /* executeScript may not be supported on this tab */ }
+
           return {
             tabType: "display",
             tabId: realTabId,
             messageId: msg.id,
             mailBody: mailBody,
             mailSubject: msg.subject || "",
-            author: msg.author || ""
+            author: msg.author || "",
+            selectedText: selectedText,
+            hasSelection: !!selectedText
           };
         }
       } catch {
@@ -182,11 +193,25 @@
     // Gather context data
     let data = { customText: customText || "" };
 
+    // Use selectedText passed from popup if available
+    if (message.selectedText) {
+      data.selectedText = message.selectedText;
+    }
+
     try {
-      if (promptDef.needSelection || promptDef.id === "custom") {
+      if ((promptDef.needSelection || promptDef.id === "custom") && !data.selectedText) {
+        // Try compose content script first
         try {
           data.selectedText = await browser.tabs.sendMessage(tabId, { command: "getSelectedText" });
-        } catch { data.selectedText = ""; }
+        } catch {
+          // Fallback: executeScript for message display tabs
+          try {
+            const results = await browser.tabs.executeScript(tabId, {
+              code: "window.getSelection().toString();"
+            });
+            data.selectedText = (results && results[0]) || "";
+          } catch { data.selectedText = ""; }
+        }
       }
 
       if (promptDef.id === "proofread") {
