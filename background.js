@@ -152,13 +152,18 @@
           const fullMsg = await browser.messages.getFull(msg.id);
           const mailBody = ThunderCraftHTML.extractTextFromMimeParts(fullMsg);
 
-          // Grab selected text via executeScript (selection persists even when grayed out)
+          // Grab selected text via executeScript in all frames
+          // (message body is rendered inside an iframe)
           let selectedText = "";
           try {
             const results = await browser.tabs.executeScript(realTabId, {
-              code: "window.getSelection().toString();"
+              code: "window.getSelection().toString();",
+              allFrames: true
             });
-            selectedText = (results && results[0]) || "";
+            // results is an array with one entry per frame; pick the first non-empty one
+            if (results) {
+              selectedText = results.find(r => r && r.trim()) || "";
+            }
           } catch { /* executeScript may not be supported on this tab */ }
 
           return {
@@ -204,12 +209,13 @@
         try {
           data.selectedText = await browser.tabs.sendMessage(tabId, { command: "getSelectedText" });
         } catch {
-          // Fallback: executeScript for message display tabs
+          // Fallback: executeScript in all frames for message display tabs
           try {
             const results = await browser.tabs.executeScript(tabId, {
-              code: "window.getSelection().toString();"
+              code: "window.getSelection().toString();",
+              allFrames: true
             });
-            data.selectedText = (results && results[0]) || "";
+            data.selectedText = (results && results.find(r => r && r.trim())) || "";
           } catch { data.selectedText = ""; }
         }
       }
