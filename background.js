@@ -5,10 +5,54 @@
 
   // --- State ---
   let currentAbortController = null;
+  let cachedDisplayContext = null; // cached before popup opens
 
   // --- Register compose content script ---
   browser.composeScripts.register({
     js: [{ file: "/compose-script.js" }]
+  });
+
+  // --- Message Display Action: capture selection BEFORE popup opens ---
+  messenger.messageDisplayAction.onClicked.addListener(async (tab) => {
+    // Capture selected text NOW (focus is still on message, not stolen by popup)
+    let selectedText = "";
+    try {
+      const results = await browser.tabs.executeScript(tab.id, {
+        code: "window.getSelection().toString();",
+        allFrames: true
+      });
+      if (results) {
+        selectedText = results.find(r => r && r.trim()) || "";
+      }
+    } catch { /* ignore */ }
+
+    // Build full display context
+    try {
+      const msgList = await messenger.messageDisplay.getDisplayedMessages(tab.id);
+      if (msgList && msgList.length > 0) {
+        const msg = msgList[0];
+        const fullMsg = await browser.messages.getFull(msg.id);
+        const mailBody = ThunderCraftHTML.extractTextFromMimeParts(fullMsg);
+
+        cachedDisplayContext = {
+          tabType: "display",
+          tabId: tab.id,
+          messageId: msg.id,
+          mailBody: mailBody,
+          mailSubject: msg.subject || "",
+          author: msg.author || "",
+          selectedText: selectedText,
+          hasSelection: !!selectedText,
+          timestamp: Date.now()
+        };
+      }
+    } catch { /* ignore */ }
+
+    // Now open the popup
+    messenger.messageDisplayAction.setPopup({ popup: "popup/popup.html" });
+    messenger.messageDisplayAction.openPopup();
+    // Reset so onClicked fires again next time
+    messenger.messageDisplayAction.setPopup({ popup: "" });
   });
 
   // --- Context Menus ---
@@ -116,6 +160,13 @@
 
   // --- Get Context ---
   async function handleGetContext(tabId) {
+    // Use cached display context if fresh (within 3 seconds)
+    if (cachedDisplayContext && (Date.now() - cachedDisplayContext.timestamp) < 3000) {
+      const ctx = cachedDisplayContext;
+      cachedDisplayContext = null;
+      return ctx;
+    }
+
     try {
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
       const tab = tabs[0];
