@@ -39,9 +39,9 @@ var ThunderCraftPrompts = {
       icon: "🇬🇧",
       type: "both",
       action: "replace",
-      needSelection: true,
+      needSelection: false,
       needCustomText: false,
-      prompt: "请将以下文本翻译为地道的英文。只输出翻译结果，不要添加任何解释。\n\n原文：\n{%selected_text%}"
+      prompt: "请将以下文本翻译为地道的英文。只输出翻译结果，不要添加任何解释。\n\n原文：\n{%selected_text%}{%mail_body%}"
     },
     {
       id: "translate_zh",
@@ -49,9 +49,9 @@ var ThunderCraftPrompts = {
       icon: "🇨🇳",
       type: "both",
       action: "replace",
-      needSelection: true,
+      needSelection: false,
       needCustomText: false,
-      prompt: "Please translate the following text into fluent Simplified Chinese. Only output the translation, no explanations.\n\nOriginal:\n{%selected_text%}"
+      prompt: "Please translate the following text into fluent Simplified Chinese. Only output the translation, no explanations.\n\nOriginal:\n{%selected_text%}{%mail_body%}"
     },
     {
       id: "reply",
