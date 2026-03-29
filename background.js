@@ -5,10 +5,32 @@
 
   // --- State ---
   let currentAbortController = null;
+  let cachedDisplayContext = null;
 
   // --- Register compose content script ---
   browser.composeScripts.register({
     js: [{ file: "/compose-script.js" }]
+  });
+
+  // --- Proactively cache message data whenever a message is displayed ---
+  messenger.messageDisplay.onMessageDisplayed.addListener(async (tab, message) => {
+    try {
+      const fullMsg = await browser.messages.getFull(message.id);
+      const mailBody = ThunderCraftHTML.extractTextFromMimeParts(fullMsg);
+
+      cachedDisplayContext = {
+        tabType: "display",
+        tabId: tab.id,
+        messageId: message.id,
+        mailBody: mailBody,
+        mailSubject: message.subject || "",
+        author: message.author || "",
+        selectedText: "",
+        hasSelection: false
+      };
+    } catch (err) {
+      console.error("ThunderCraft: failed to cache message:", err);
+    }
   });
 
   // --- Context Menus ---
@@ -49,7 +71,6 @@
     if (!promptDef) return;
 
     try {
-      // Get selected text from compose editor
       const selectedText = await browser.tabs.sendMessage(tab.id, { command: "getSelectedText" });
       if (!selectedText) return;
 
@@ -57,7 +78,6 @@
         selectedText: selectedText
       });
 
-      // Stream and collect full result
       let fullText = "";
       await new Promise((resolve, reject) => {
         ThunderCraftAPI.fetchStream(
@@ -127,7 +147,6 @@
       try {
         const details = await browser.compose.getComposeDetails(realTabId);
         if (details) {
-          // It's a compose tab
           let selectedText = "";
           try {
             selectedText = await browser.tabs.sendMessage(realTabId, { command: "getSelectedText" });
@@ -144,7 +163,14 @@
         // Not a compose tab
       }
 
-      // Check if it's a message display tab
+      // Use proactively cached display context
+      if (cachedDisplayContext) {
+        // Update tabId to current (tab might have changed)
+        cachedDisplayContext.tabId = realTabId;
+        return { ...cachedDisplayContext };
+      }
+
+      // Fallback: try to read message display directly
       try {
         const msgList = await messenger.messageDisplay.getDisplayedMessages(realTabId);
         if (msgList && msgList.length > 0) {
@@ -158,7 +184,9 @@
             messageId: msg.id,
             mailBody: mailBody,
             mailSubject: msg.subject || "",
-            author: msg.author || ""
+            author: msg.author || "",
+            selectedText: "",
+            hasSelection: false
           };
         }
       } catch {
@@ -175,15 +203,19 @@
 
   // --- Execute AI Action ---
   async function handleExecuteAction(message) {
-    const { actionId, tabId, customText, popupTabId } = message;
+    const { actionId, tabId, customText } = message;
     const promptDef = ThunderCraftPrompts.getById(actionId);
     if (!promptDef) return { error: "未知动作" };
 
     // Gather context data
     let data = { customText: customText || "" };
 
+    if (message.selectedText) {
+      data.selectedText = message.selectedText;
+    }
+
     try {
-      if (promptDef.needSelection || promptDef.id === "custom") {
+      if ((promptDef.needSelection || promptDef.id === "custom") && !data.selectedText) {
         try {
           data.selectedText = await browser.tabs.sendMessage(tabId, { command: "getSelectedText" });
         } catch { data.selectedText = ""; }
@@ -199,12 +231,15 @@
         }
       }
 
-      if (promptDef.type === "display" || promptDef.type === "both") {
-        if (message.mailBody) {
-          data.mailBody = message.mailBody;
-          data.mailSubject = message.mailSubject || "";
-          data.author = message.author || "";
-        }
+      // Use mailBody from popup message or from cached context
+      if (message.mailBody) {
+        data.mailBody = message.mailBody;
+        data.mailSubject = message.mailSubject || "";
+        data.author = message.author || "";
+      } else if (cachedDisplayContext && cachedDisplayContext.mailBody) {
+        data.mailBody = cachedDisplayContext.mailBody;
+        data.mailSubject = cachedDisplayContext.mailSubject || "";
+        data.author = cachedDisplayContext.author || "";
       }
 
       // Resolve prompt
@@ -220,11 +255,10 @@
       ThunderCraftAPI.fetchStream(
         [{ role: "user", content: resolvedPrompt }],
         (token) => {
-          // Forward token to popup
           browser.runtime.sendMessage({
             command: "streamToken",
             token: token
-          }).catch(() => { /* popup might be closed */ });
+          }).catch(() => {});
         },
         (fullText) => {
           currentAbortController = null;
@@ -258,7 +292,6 @@
       const details = await browser.compose.getComposeDetails(tabId);
       const currentBody = details.body || "";
 
-      // Find the quoted content marker and insert before it
       const quoteMarker = currentBody.indexOf('<div class="moz-cite-prefix"');
       const blockquoteMarker = currentBody.indexOf('<blockquote');
       const insertPos = Math.min(
@@ -270,7 +303,6 @@
       if (insertPos < Infinity) {
         newBody = html + "<br><br>" + currentBody.substring(insertPos);
       } else {
-        // Replace body content inside <body> tags
         const bodyMatch = currentBody.match(/(<body[^>]*>)([\s\S]*?)(<\/body>)/i);
         if (bodyMatch) {
           newBody = bodyMatch[1] + html + bodyMatch[3];
@@ -308,13 +340,11 @@
       const html = ThunderCraftHTML.textToHtml(text);
       const tab = await browser.compose.beginReply(messageId, "replyToSender");
 
-      // Wait for compose tab to be ready
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const details = await browser.compose.getComposeDetails(tab.id);
       const currentBody = details.body || "";
 
-      // Insert AI text before the quoted content
       const quoteMarker = currentBody.indexOf('<div class="moz-cite-prefix"');
       const blockquoteMarker = currentBody.indexOf('<blockquote');
       const insertPos = Math.min(

@@ -131,7 +131,10 @@
       customText: customText
     };
 
-    // Include display context data
+    // Include context data
+    if (context?.selectedText) {
+      message.selectedText = context.selectedText;
+    }
     if (context?.tabType === "display") {
       message.mailBody = context.mailBody;
       message.mailSubject = context.mailSubject;
@@ -192,11 +195,13 @@
 
     if (currentAction) {
       const action = currentAction.action;
-      btnInsert.style.display = (action === "insert" || action === "replace") ? "" : "none";
-      btnReplace.style.display = (action === "replace" && context?.hasSelection) ? "" : "none";
+      const isDisplay = context?.tabType === "display";
+
+      btnInsert.style.display = (!isDisplay && (action === "insert" || action === "replace")) ? "" : "none";
+      btnReplace.style.display = (!isDisplay && action === "replace" && context?.hasSelection) ? "" : "none";
       btnReply.style.display = (action === "reply") ? "" : "none";
 
-      // If action is "display" (summarize), hide insert/replace/reply
+      // Summarize or display-tab translate: only show copy
       if (action === "display") {
         btnInsert.style.display = "none";
         btnReplace.style.display = "none";
@@ -329,8 +334,8 @@
       { id: "polish", name: "润色文本", icon: "✨", type: "compose", action: "replace", needSelection: true, needCustomText: false },
       { id: "formal", name: "正式化", icon: "👔", type: "compose", action: "replace", needSelection: true, needCustomText: false },
       { id: "casual", name: "口语化", icon: "😊", type: "compose", action: "replace", needSelection: true, needCustomText: false },
-      { id: "translate_en", name: "翻译为英文", icon: "🇬🇧", type: "both", action: "replace", needSelection: true, needCustomText: false },
-      { id: "translate_zh", name: "翻译为中文", icon: "🇨🇳", type: "both", action: "replace", needSelection: true, needCustomText: false },
+      { id: "translate_en", name: "翻译为英文", icon: "🇬🇧", type: "both", action: "replace", needSelection: false, needCustomText: false },
+      { id: "translate_zh", name: "翻译为中文", icon: "🇨🇳", type: "both", action: "replace", needSelection: false, needCustomText: false },
       { id: "proofread", name: "检查语法", icon: "🔍", type: "compose", action: "replace", needSelection: false, needCustomText: false },
       { id: "write_new", name: "撰写新邮件", icon: "📧", type: "compose", action: "insert", needSelection: false, needCustomText: true },
       { id: "custom", name: "自定义指令", icon: "⚙️", type: "both", action: "replace", needSelection: false, needCustomText: true },
