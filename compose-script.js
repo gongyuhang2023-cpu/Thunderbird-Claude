@@ -18,18 +18,14 @@ browser.runtime.onMessage.addListener((message) => {
     }
 
     case "replaceSelectedText": {
-      // Read the editor's current font style to match inserted text
-      const style = getEditorFontStyle();
-      const styledHtml = applyFontStyle(message.html, style);
-
+      const frag = htmlToFragment(message.html);
       const sel = window.getSelection();
+
       if (!sel || sel.rangeCount === 0) {
-        // No selection: insert at end of body (before any quotes)
+        // No selection: insert before quotes
         const citePrefix = document.querySelector(".moz-cite-prefix");
         const blockquote = document.querySelector('blockquote[type="cite"]');
         const insertBefore = citePrefix || blockquote;
-
-        const frag = htmlToFragment(styledHtml);
 
         if (insertBefore) {
           document.body.insertBefore(frag, insertBefore);
@@ -41,7 +37,7 @@ browser.runtime.onMessage.addListener((message) => {
 
       const range = sel.getRangeAt(0);
       range.deleteContents();
-      range.insertNode(htmlToFragment(styledHtml));
+      range.insertNode(frag);
       sel.collapseToEnd();
       return Promise.resolve(true);
     }
@@ -73,8 +69,6 @@ browser.runtime.onMessage.addListener((message) => {
   }
 });
 
-// --- Helpers ---
-
 function htmlToFragment(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
@@ -83,31 +77,4 @@ function htmlToFragment(html) {
     frag.appendChild(child.cloneNode(true));
   }
   return frag;
-}
-
-function getEditorFontStyle() {
-  // Try to read font from existing body content or body computed style
-  const firstTextNode = document.body.querySelector("p, div, span, font, br");
-  const refElement = firstTextNode || document.body;
-  const cs = window.getComputedStyle(refElement);
-
-  return {
-    fontFamily: cs.fontFamily || "",
-    fontSize: cs.fontSize || "",
-    color: cs.color || ""
-  };
-}
-
-function applyFontStyle(html, style) {
-  if (!style.fontFamily && !style.fontSize) return html;
-
-  // Build inline style string
-  const parts = [];
-  if (style.fontFamily) parts.push(`font-family: ${style.fontFamily}`);
-  if (style.fontSize) parts.push(`font-size: ${style.fontSize}`);
-  if (style.color) parts.push(`color: ${style.color}`);
-  const css = parts.join("; ");
-
-  // Wrap the HTML in a span with the editor's font style
-  return `<span style="${css}">${html}</span>`;
 }

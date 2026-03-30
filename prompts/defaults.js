@@ -2,6 +2,9 @@
 
 var ThunderCraftPrompts = {
 
+  // Shared formatting instruction appended to email-writing prompts
+  FORMAT_HINT: "\n\n格式要求：可使用 **粗体** 强调关键日期、截止时间、重要结论；用 *斜体* 标注论文标题、期刊名、物种名。注意正确使用学术头衔（Prof./Dr./Mr./Ms.），如发件人署名含头衔请沿用。",
+
   defaults: [
     {
       id: "polish",
@@ -11,7 +14,7 @@ var ThunderCraftPrompts = {
       action: "replace",
       needSelection: true,
       needCustomText: false,
-      prompt: "请润色以下邮件文本，使其更加流畅自然、措辞得体，保持原意不变。只输出润色后的文本，不要添加任何解释。\n\n原文：\n{%selected_text%}"
+      prompt: "请润色以下邮件文本，使其更加流畅自然、措辞得体，保持原意不变。保留对方的学术头衔（Prof./Dr.等）。只输出润色后的文本，不要添加任何解释。{%format_hint%}\n\n原文：\n{%selected_text%}"
     },
     {
       id: "formal",
@@ -21,7 +24,7 @@ var ThunderCraftPrompts = {
       action: "replace",
       needSelection: true,
       needCustomText: false,
-      prompt: "请将以下文本改写为正式的学术/商务邮件风格，措辞专业得体，保持原意不变。只输出改写后的文本。\n\n原文：\n{%selected_text%}"
+      prompt: "请将以下文本改写为正式的学术/商务邮件风格，措辞专业得体，保持原意不变。保留对方的学术头衔（Prof./Dr.等）。只输出改写后的文本。{%format_hint%}\n\n原文：\n{%selected_text%}"
     },
     {
       id: "casual",
@@ -41,7 +44,7 @@ var ThunderCraftPrompts = {
       action: "replace",
       needSelection: false,
       needCustomText: false,
-      prompt: "请将以下文本翻译为地道的英文。只输出翻译结果，不要添加任何解释。\n\n原文：\n{%selected_text%}{%mail_body%}"
+      prompt: "请将以下文本翻译为地道的英文。保留学术头衔（Prof./Dr.等）。只输出翻译结果，不要添加任何解释。{%format_hint%}\n\n原文：\n{%selected_text%}{%mail_body%}"
     },
     {
       id: "translate_zh",
@@ -51,7 +54,7 @@ var ThunderCraftPrompts = {
       action: "replace",
       needSelection: false,
       needCustomText: false,
-      prompt: "Please translate the following text into fluent Simplified Chinese. Only output the translation, no explanations.\n\nOriginal:\n{%selected_text%}{%mail_body%}"
+      prompt: "Please translate the following text into fluent Simplified Chinese. Preserve academic titles (Prof./Dr. etc). Only output the translation, no explanations.\n\nOriginal:\n{%selected_text%}{%mail_body%}"
     },
     {
       id: "reply",
@@ -61,7 +64,7 @@ var ThunderCraftPrompts = {
       action: "reply",
       needSelection: false,
       needCustomText: false,
-      prompt: "请根据以下邮件内容，撰写一封专业得体的回复邮件。只输出回复正文，不要包含主题行或署名。\n\n来信主题：{%mail_subject%}\n发件人：{%author%}\n\n来信内容：\n{%mail_body%}"
+      prompt: "请根据以下邮件内容，撰写一封专业得体的回复邮件。根据发件人署名使用正确的学术头衔（Prof./Dr.等）称呼对方。只输出回复正文，不要包含主题行或署名。{%format_hint%}\n\n来信主题：{%mail_subject%}\n发件人：{%author%}\n\n来信内容：\n{%mail_body%}"
     },
     {
       id: "reply_custom",
@@ -71,7 +74,7 @@ var ThunderCraftPrompts = {
       action: "reply",
       needSelection: false,
       needCustomText: true,
-      prompt: "请根据以下邮件内容和我的要求，撰写一封回复邮件。只输出回复正文，不要包含主题行或署名。\n\n来信主题：{%mail_subject%}\n发件人：{%author%}\n\n来信内容：\n{%mail_body%}\n\n我的要求：{%custom_text%}"
+      prompt: "请根据以下邮件内容和我的要求，撰写一封回复邮件。根据发件人署名使用正确的学术头衔（Prof./Dr.等）称呼对方。只输出回复正文，不要包含主题行或署名。{%format_hint%}\n\n来信主题：{%mail_subject%}\n发件人：{%author%}\n\n来信内容：\n{%mail_body%}\n\n我的要求：{%custom_text%}"
     },
     {
       id: "write_new",
@@ -81,7 +84,7 @@ var ThunderCraftPrompts = {
       action: "insert",
       needSelection: false,
       needCustomText: true,
-      prompt: "请根据以下要求撰写一封邮件。只输出邮件正文，不要包含主题行或署名。\n\n要求：{%custom_text%}"
+      prompt: "请根据以下要求撰写一封邮件。如提及收件人，请使用正确的学术头衔（Prof./Dr.等）。只输出邮件正文，不要包含主题行或署名。{%format_hint%}\n\n要求：{%custom_text%}"
     },
     {
       id: "proofread",
@@ -91,7 +94,7 @@ var ThunderCraftPrompts = {
       action: "replace",
       needSelection: false,
       needCustomText: false,
-      prompt: "请检查并修正以下邮件文本中的语法、拼写和标点错误。只输出修正后的文本，不要添加任何说明。如果没有错误，原样输出即可。\n\n原文：\n{%typed_text%}"
+      prompt: "请检查并修正以下邮件文本中的语法、拼写和标点错误。保留学术头衔不变。只输出修正后的文本，不要添加任何说明。如果没有错误，原样输出即可。\n\n原文：\n{%typed_text%}"
     },
     {
       id: "summarize",
@@ -101,7 +104,7 @@ var ThunderCraftPrompts = {
       action: "display",
       needSelection: false,
       needCustomText: false,
-      prompt: "请用中文简要总结以下邮件的核心内容（3-5个要点）。\n\n主题：{%mail_subject%}\n\n邮件内容：\n{%mail_body%}"
+      prompt: "请用中文简要总结以下邮件的核心内容（3-5个要点）。用 **粗体** 标注关键信息。\n\n主题：{%mail_subject%}\n\n邮件内容：\n{%mail_body%}"
     },
     {
       id: "custom",
@@ -130,6 +133,7 @@ var ThunderCraftPrompts = {
       .replace(/\{%mail_body%\}/g, data.mailBody || "")
       .replace(/\{%mail_subject%\}/g, data.mailSubject || "")
       .replace(/\{%author%\}/g, data.author || "")
-      .replace(/\{%custom_text%\}/g, data.customText || "");
+      .replace(/\{%custom_text%\}/g, data.customText || "")
+      .replace(/\{%format_hint%\}/g, this.FORMAT_HINT);
   }
 };
