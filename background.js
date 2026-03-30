@@ -288,9 +288,9 @@
   async function handleInsertResult(message) {
     const { tabId, text } = message;
     try {
-      const html = ThunderCraftHTML.textToHtml(text);
       const details = await browser.compose.getComposeDetails(tabId);
       const currentBody = details.body || "";
+      const html = ThunderCraftHTML.matchBodyFont(currentBody, ThunderCraftHTML.textToHtml(text));
 
       const quoteMarker = currentBody.indexOf('<div class="moz-cite-prefix"');
       const blockquoteMarker = currentBody.indexOf('<blockquote');
@@ -337,13 +337,13 @@
   async function handleCreateReply(message) {
     const { messageId, text } = message;
     try {
-      const html = ThunderCraftHTML.textToHtml(text);
       const tab = await browser.compose.beginReply(messageId, "replyToSender");
 
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const details = await browser.compose.getComposeDetails(tab.id);
       const currentBody = details.body || "";
+      const html = ThunderCraftHTML.matchBodyFont(currentBody, ThunderCraftHTML.textToHtml(text));
 
       const quoteMarker = currentBody.indexOf('<div class="moz-cite-prefix"');
       const blockquoteMarker = currentBody.indexOf('<blockquote');

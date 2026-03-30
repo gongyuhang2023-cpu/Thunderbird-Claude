@@ -25,6 +25,50 @@ var ThunderCraftHTML = {
     return tmp.body.textContent || "";
   },
 
+  // Extract font style from existing compose body HTML and wrap new content to match
+  matchBodyFont(existingBodyHtml, newHtml) {
+    if (!existingBodyHtml || !newHtml) return newHtml;
+
+    // Try to find font info from <font> tags (Thunderbird commonly uses these)
+    const fontMatch = existingBodyHtml.match(/<font[^>]*face="([^"]+)"[^>]*>/i);
+    const sizeMatch = existingBodyHtml.match(/<font[^>]*size="([^"]+)"[^>]*>/i);
+    const colorMatch = existingBodyHtml.match(/<font[^>]*color="([^"]+)"[^>]*>/i);
+
+    // Also try inline style on body tag
+    const bodyStyleMatch = existingBodyHtml.match(/<body[^>]*style="([^"]+)"[^>]*/i);
+    let bodyFontFamily = "";
+    let bodyFontSize = "";
+    let bodyColor = "";
+    if (bodyStyleMatch) {
+      const s = bodyStyleMatch[1];
+      const ff = s.match(/font-family:\s*([^;]+)/i);
+      const fs = s.match(/font-size:\s*([^;]+)/i);
+      const fc = s.match(/(?:^|;)\s*color:\s*([^;]+)/i);
+      if (ff) bodyFontFamily = ff[1].trim();
+      if (fs) bodyFontSize = fs[1].trim();
+      if (fc) bodyColor = fc[1].trim();
+    }
+
+    const face = fontMatch ? fontMatch[1] : bodyFontFamily;
+    const size = sizeMatch ? sizeMatch[1] : "";
+    const color = colorMatch ? colorMatch[1] : bodyColor;
+
+    if (!face && !bodyFontSize && !size) return newHtml;
+
+    // Use <font> tag to match Thunderbird's native format
+    const attrs = [];
+    if (face) attrs.push(`face="${face}"`);
+    if (size) attrs.push(`size="${size}"`);
+    if (color) attrs.push(`color="${color}"`);
+
+    // Also add inline style for font-size if we got it from body style
+    let style = "";
+    if (bodyFontSize) style += `font-size: ${bodyFontSize};`;
+    if (style) attrs.push(`style="${style}"`);
+
+    return `<font ${attrs.join(" ")}>${newHtml}</font>`;
+  },
+
   extractTextFromMimeParts(part) {
     if (!part) return "";
 
